@@ -42,7 +42,7 @@ A simple and ad-free Android app that displays caller names using the Truecaller
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/caller-name-popup.git
+   git clone https://github.com/r0ld3x/truecaller-lite.git
    ```
 2. Open the project in Android Studio.
 3. Open [com/r0ld3x/truecaller/ApiInstance.kt](https://github.com/r0ld3x/truecaller-lite/blob/bac0b9e636ffbc16719ff0d1f6da8ad89b5d196a/app/src/main/java/com/r0ld3x/truecaller/ApiInstance.kt#L17) and add api url (already adedd in release apk)
