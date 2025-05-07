@@ -12,10 +12,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        android:autofillHints=""
+        android:autofillHints="phone"
         android:hint="Enter Mobile No."
-        android:maxLines="1" />
-
+        android:maxLines="1"
+        android:imeOptions="actionDone"
+        android:inputType="phone" />
     <Button
         android:id="@+id/submitBtn"
         android:layout_width="wrap_content"

@@ -10,6 +10,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.View.VISIBLE
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -63,6 +64,14 @@ class MainActivity : AppCompatActivity() {
 
         binding.submitBtn.setOnClickListener {
             searchMobileNumber()
+        }
+        binding.mobileNo.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                searchMobileNumber()
+                true  // consume the action
+            } else {
+                false // pass on to other listeners
+            }
         }
 
     }
