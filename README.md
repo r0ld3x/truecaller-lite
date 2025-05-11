@@ -27,7 +27,7 @@ A simple and ad-free Android app that displays caller names using the Truecaller
 
 | Incoming Call Popup | Service Running |
 |---------------------|-----------------|
-| <img src="https://github.com/user-attachments/assets/228e45cf-d1b4-4d0e-8d8b-406e5422cc8f" alt="Incoming Call Popup" width="300"/> | <img src="https://github.com/user-attachments/assets/ded73098-8ad1-4851-a82c-b71fceac673a" alt="Service RunningI" width="300"/> |
+| <img src="https://github.com/user-attachments/assets/f595c5b7-d175-4009-8ae3-690a9576c1a3" alt="Incoming Call Popup" width="300"/> | <img src="https://github.com/user-attachments/assets/96aa63f9-1c69-4046-b9c5-ddf81569a67c" alt="Service RunningI" width="300"/> |
 
 
 ## 📦 Tech Stack
@@ -45,8 +45,8 @@ A simple and ad-free Android app that displays caller names using the Truecaller
    git clone https://github.com/r0ld3x/truecaller-lite.git
    ```
 2. Open the project in Android Studio.
-3. Open [com/r0ld3x/truecaller/ApiInstance.kt](https://github.com/r0ld3x/truecaller-lite/blob/bac0b9e636ffbc16719ff0d1f6da8ad89b5d196a/app/src/main/java/com/r0ld3x/truecaller/ApiInstance.kt#L17) and add api url (already adedd in release apk)
-4. List your api inside the [network_security_config.xml](https://github.com/r0ld3x/truecaller-lite/blob/bac0b9e636ffbc16719ff0d1f6da8ad89b5d196a/app/src/main/res/xml/network_security_config.xml#L5) 
+3. List your api key inside the [com/r0ld3x/truecaller/ApiInstance.kt](https://github.com/r0ld3x/truecaller-lite/blob/bac0b9e636ffbc16719ff0d1f6da8ad89b5d196a/app/src/main/java/com/r0ld3x/truecaller/ApiInstance.kt#L17) (incase you wanna change) `already added by default`
+4. List your api inside the [network_security_config.xml](https://github.com/r0ld3x/truecaller-lite/blob/bac0b9e636ffbc16719ff0d1f6da8ad89b5d196a/app/src/main/res/xml/network_security_config.xml#L5)  (incase you wanna change)
 5. Run on an emulator or physical Android device.
 
 ## ⚠️ Disclaimer

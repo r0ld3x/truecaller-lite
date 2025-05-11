@@ -9,12 +9,11 @@ import retrofit2.http.Query
 interface ApiService {
     @GET("api")
     suspend fun getUserInfo(@Query("q") phone: String): ResponseTypes
-//    suspend fun getUserInfo(@Query("q") phone: String): ResponseTypes
 }
 
 
 object RetrofitClient {
-    private const val BASE_URL = "" //ENTER API HERE
+    private const val BASE_URL = "https://tc-api-4759f72c5e83.herokuapp.com"
 
     val apiService: ApiService by lazy {
         Retrofit.Builder()
