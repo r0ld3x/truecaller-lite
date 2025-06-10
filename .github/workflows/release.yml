@@ -43,6 +43,6 @@ jobs:
         with:
           name: "Release ${{ env.RELEASE_VERSION }}"
           tag_name: ${{ env.RELEASE_VERSION }}
-          files: android/app/build/outputs/apk/release/app-release.apk
+          files: app/build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
