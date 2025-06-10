@@ -33,10 +33,16 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload APK to GitHub Release
+      - name: Check APK Output
+        run: |
+          echo "APK files:"
+          find app/build/outputs -type f -name "*.apk"
+
+      - name: Upload APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          files: app/build/outputs/apk/release/app-release.apk
+          name: "Release ${{ env.RELEASE_VERSION }}"
+          tag_name: ${{ env.RELEASE_VERSION }}
+          files: android/app/build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN }}

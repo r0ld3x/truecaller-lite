@@ -19,3 +19,25 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+#-assumenosideeffects class android.util.Log {
+#    public static *** d(...);
+#    public static *** v(...);
+#    public static *** i(...);
+#    public static *** w(...);
+#    public static *** e(...);
+#}
+#
+## Keep Retrofit/Gson/Kotlin data classes
+#-keepclassmembers class * {
+#    @retrofit2.http.* <methods>;
+#}
+#-keep class com.yourpackage.model.** { *; }
+#-keep class retrofit2.** { *; }
+#-keepattributes Signature
+#-keepattributes *Annotation*
+#
+## If you're using reflection (e.g., Service or Overlay class via class name)
+#-keepclassmembers class * {
+#    public <init>(...);
+#}

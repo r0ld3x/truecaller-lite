@@ -1,177 +1,150 @@
 package com.r0ld3x.truecaller
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import android.view.View.VISIBLE
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
 import coil.load
 import com.r0ld3x.truecaller.databinding.ActivityMainBinding
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
 
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val PERMISSIONS_REQUEST_CODE = 1001
+        private val REQUIRED_PERMISSIONS = arrayOf(
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.READ_CALL_LOG,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_PHONE_NUMBERS
+        )
     }
-    private val serviceScope = CoroutineScope(Job() + Dispatchers.IO)
+
     private lateinit var binding: ActivityMainBinding
+    private lateinit var callControlManager: CallControlManager
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (!allGranted) {
+            showToast("Permissions are required to monitor calls.")
+        }
+        checkOverlayPermission()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        requestPermission()
-        val channel = NotificationChannel(
-            "calls_channel",
-            "Call Monitoring",
-            NotificationManager.IMPORTANCE_LOW
-        )
-        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(channel)
+
+        callControlManager = CallControlManager(this)
+
+        setupUiListeners()
+        checkAndRequestPermissions()
+        showMiuiPermissionDialogIfNeeded()
+    }
+
+    private fun setupUiListeners() {
         binding.btnStartService.setOnClickListener {
             startCallMonitorService()
-            Toast.makeText(this, "Service is started.", Toast.LENGTH_SHORT).show()
-            Handler(Looper.getMainLooper()).postDelayed({
-                updateServiceStatus()
-            }, 500)
         }
+
         binding.btnStopService.setOnClickListener {
-            val stopIntent = Intent(this, CallService::class.java)
-            stopService(stopIntent)
-            Toast.makeText(this, "Service is stopped.", Toast.LENGTH_SHORT).show()
-            Handler(Looper.getMainLooper()).postDelayed({
-                updateServiceStatus()
-            }, 500)
+            stopCallMonitorService()
         }
 
         binding.submitBtn.setOnClickListener {
             searchMobileNumber()
         }
+
         binding.mobileNo.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 searchMobileNumber()
-                true  // consume the action
-            } else {
-                false // pass on to other listeners
-            }
+                true
+            } else false
         }
-
     }
 
-    private fun requestPermission() {
-
-        if (ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.READ_PHONE_STATE
-            ) != PackageManager.PERMISSION_GRANTED
-            ||
-            ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.READ_CALL_LOG
-            ) != PackageManager.PERMISSION_GRANTED
-            ||
-            ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.READ_CONTACTS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(
-                    android.Manifest.permission.READ_PHONE_STATE,
-                    android.Manifest.permission.READ_CALL_LOG,
-                    android.Manifest.permission.READ_CONTACTS
-                ),
-                PERMISSIONS_REQUEST_CODE
-            )
+    private fun checkAndRequestPermissions() {
+        val missingPermissions = REQUIRED_PERMISSIONS.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
+
+        if (missingPermissions.isNotEmpty()) {
+            permissionLauncher.launch(missingPermissions.toTypedArray())
+        } else {
+            checkOverlayPermission()
+        }
+    }
+
+    private fun checkOverlayPermission() {
         if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                "package:$packageName".toUri()
-            )
+            val intent =
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())
             startActivity(intent)
         }
     }
 
     private fun startCallMonitorService() {
-        val serviceIntent = Intent(this, CallService::class.java)
-        startService(serviceIntent)
+        callControlManager.enableCallReceiver()
+        updateServiceStatus()
+        showToast("Service started.")
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String?>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == PERMISSIONS_REQUEST_CODE) {
-            var allPermissionGranted = true
-
-
-            for (result in grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allPermissionGranted = false
-                    break
-                }
-            }
-
-            if (!allPermissionGranted) {
-                Toast.makeText(
-                    this,
-                    "Permissions are required to monitor calls.",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
+    private fun stopCallMonitorService() {
+        callControlManager.disableCallReceiver()
+        updateServiceStatus()
+        showToast("Service stopped.")
     }
-
 
     override fun onResume() {
         super.onResume()
         updateServiceStatus()
+        checkOverlayPermission()
     }
 
+    @SuppressLint("SetTextI18n")
     private fun updateServiceStatus() {
-        if (CallService.isRunning) {
-            binding.currentState.text = "✅ Service Running"
-        } else {
-            binding.currentState.text = "❌ Service Not Running"
-        }
+        binding.currentState.text =
+            if (callControlManager.isCallReceiverEnabled()) "✅ Service Running"
+            else "❌ Service Not Running"
     }
 
-    private fun searchMobileNumber(){
-        val mobNo = binding.mobileNo.text
-    if (mobNo.isEmpty()){
-            Toast.makeText(applicationContext, "Enter the number.", Toast.LENGTH_SHORT).show()
+    @SuppressLint("SetTextI18n")
+    private fun searchMobileNumber() {
+        val number = binding.mobileNo.text.toString()
+        if (number.isEmpty()) {
+            showToast("Enter the number.")
             return
         }
-        Toast.makeText(applicationContext, "Wait..", Toast.LENGTH_SHORT).show()
-        serviceScope.launch {
+
+        hideKeyboard()
+        showToast("Wait...")
+
+        lifecycleScope.launch {
             try {
-                val response = RetrofitClient.apiService.getUserInfo(mobNo.toString())
-                val user = response
+                val user = RetrofitClient.apiService.getUserInfo(number)
                 withContext(Dispatchers.Main) {
-                    binding.postLayout.visibility = VISIBLE
+                    binding.postLayout.visibility = android.view.View.VISIBLE
                     binding.profileName.text = user.name
                     binding.address.text = user.address
                     binding.profileImage.load(user.image)
@@ -179,14 +152,73 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("CallService", "API Error: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    binding.postLayout.visibility = VISIBLE
+                    binding.postLayout.visibility = android.view.View.VISIBLE
                     binding.profileName.text = "Not Found"
+                    binding.address.text = ""
+                    binding.profileImage.setImageDrawable(null)
                 }
             }
         }
     }
 
+    private fun hideKeyboard() {
+        currentFocus?.let {
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(it.windowToken, 0)
+        }
+    }
 
+    private fun showMiuiPermissionDialogIfNeeded() {
+        if (Build.MANUFACTURER.equals("xiaomi", ignoreCase = true) &&
+            !SharePref(this).hasUserSeenMiuiPrompt()
+        ) {
+            AlertDialog.Builder(this)
+                .setTitle("Permission Required")
+                .setMessage(
+                    """
+                        To display overlay on lock screen in MIUI, please enable:
+                        • 'Show on Lock Screen'
+                        • 'Display pop-up windows while running in background'
+                    """.trimIndent()
+                )
+                .setPositiveButton("Open Settings") { _, _ ->
+                    openMiuiOtherPermissions()
+                    SharePref(this).markMiuiPromptAsShown()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
 
+    private fun openMiuiOtherPermissions() {
+        try {
+            val miuiIntent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                setClassName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.permissions.PermissionsEditorActivity"
+                )
+                putExtra("extra_pkgname", packageName)
+            }
+            startActivity(miuiIntent)
 
+            val autoStartIntent = Intent().apply {
+                component = ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                )
+            }
+            startActivity(autoStartIntent)
+
+        } catch (e: Exception) {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = "package:$packageName".toUri()
+                }
+            )
+        }
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+    }
 }
