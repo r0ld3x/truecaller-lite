@@ -40,7 +40,8 @@ class IncomingCallReceiver : BroadcastReceiver() {
                 if (incomingNumber == null) {
                     return
                 }
-                handleIncomingCall(context, incomingNumber)
+                val phoneNumber = incomingNumber.filter { it.isDigit() }
+                handleIncomingCall(context, phoneNumber)
             } else if (state == TelephonyManager.EXTRA_STATE_IDLE || state == TelephonyManager.EXTRA_STATE_OFFHOOK) {
                 releaseWakeLock()
                 removeOverlay()
@@ -113,8 +114,7 @@ class IncomingCallReceiver : BroadcastReceiver() {
     private fun fetchUserInfoFromApi(context: Context, number: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val response = RetrofitClient.apiService.getUserInfo(number.toString())
-                val user = response
+                val user = RetrofitClient.getUserInfoCached(context, number.toString())
                 withContext(Dispatchers.Main) {
                     showCallerOverlay(context, user.name, user.image, user.address)
                 }

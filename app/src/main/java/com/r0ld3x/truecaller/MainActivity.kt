@@ -131,18 +131,19 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun searchMobileNumber() {
-        val number = binding.mobileNo.text.toString()
+        val number = binding.mobileNo.text.toString().filter { it.isDigit() }
         if (number.isEmpty()) {
             showToast("Enter the number.")
             return
         }
 
         hideKeyboard()
+        val context = this
+        val digitsOnly = number
         showToast("Wait...")
-
         lifecycleScope.launch {
             try {
-                val user = RetrofitClient.apiService.getUserInfo(number)
+                val user = RetrofitClient.getUserInfoCached(context, digitsOnly)
                 withContext(Dispatchers.Main) {
                     binding.postLayout.visibility = android.view.View.VISIBLE
                     binding.profileName.text = user.name
