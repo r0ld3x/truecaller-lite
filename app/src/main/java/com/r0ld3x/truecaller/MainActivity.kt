@@ -4,10 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -33,7 +31,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.READ_CALL_LOG,
             Manifest.permission.READ_CONTACTS,
-            Manifest.permission.READ_PHONE_NUMBERS
+//            Manifest.permission.READ_PHONE_NUMBERS
         )
     }
 
@@ -88,7 +86,6 @@ class MainActivity : AppCompatActivity() {
         val missingPermissions = REQUIRED_PERMISSIONS.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-
         if (missingPermissions.isNotEmpty()) {
             permissionLauncher.launch(missingPermissions.toTypedArray())
         } else {
@@ -144,6 +141,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val user = RetrofitClient.getUserInfoCached(context, digitsOnly)
+                if (user == null){
+                    showToast("error while doing api call.")
+                    return@launch
+                }
                 withContext(Dispatchers.Main) {
                     binding.postLayout.visibility = android.view.View.VISIBLE
                     binding.profileName.text = user.name

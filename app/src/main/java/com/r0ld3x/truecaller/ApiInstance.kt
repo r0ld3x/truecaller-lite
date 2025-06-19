@@ -2,7 +2,10 @@ package com.r0ld3x.truecaller
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
+import android.widget.Toast
 import com.google.gson.Gson
 import retrofit2.Retrofit
 import retrofit2.http.GET
@@ -53,11 +56,14 @@ object RetrofitClient {
         retrofit.create(ApiService::class.java)
     }
 
-    suspend fun getUserInfoCached(context: Context,phone: String): ResponseTypes{
+    suspend fun getUserInfoCached(context: Context,phone: String): ResponseTypes?{
          init(context)
         val cachedJson = sharedPreferences.getString(phone, null)
         if (cachedJson != null){
             return gson.fromJson(cachedJson, ResponseTypes::class.java)
+        }
+        if (!isInternetAvailable(context)) {
+            return null
         }
         val response = api.getUserInfo(phone)
         sharedPreferences.edit() { putString(phone, gson.toJson(response)) }
@@ -66,5 +72,17 @@ object RetrofitClient {
         }
         return response
     }
+
+
+    fun isInternetAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+
 
 }

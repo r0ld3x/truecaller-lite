@@ -17,6 +17,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.WindowManager
 import android.widget.LinearLayout
+import android.widget.Toast
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.r0ld3x.truecaller.databinding.OverlayNameBinding
@@ -115,12 +116,17 @@ class IncomingCallReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val user = RetrofitClient.getUserInfoCached(context, number.toString())
+                if (user == null){
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "error: check your internet connection", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
                 withContext(Dispatchers.Main) {
                     showCallerOverlay(context, user.name, user.image, user.address)
                 }
             } catch (e: Exception) {
                 Log.e("CallService", "API Error: ${e.message}")
-                Log.e("CallService", "API Error: ${e.toString()}")
                 withContext(Dispatchers.Main) {
                     showCallerOverlay(context, "API DEAD", "", "")
                 }
@@ -348,6 +354,9 @@ class IncomingCallReceiver : BroadcastReceiver() {
 
         return false
     }
+
+
+
 
 
     
