@@ -3,10 +3,10 @@ name: Build and Release APK
 on:
   push:
     tags:
-      - 'v*'    # Trigger on version tags like v1.0, v1.1 etc.
+      - 'v*'    
 
 permissions:
-  contents: write   # Permission to create release and upload assets
+  contents: write  
   packages: write
 
 jobs:
@@ -23,19 +23,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Grant execute permission to gradlew
+      - name: Decode keystore from base64
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/my-release-key.jks
+
+      - name: Grant permission to gradlew
         run: chmod +x ./gradlew
 
-      - name: Decode keystore file
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
-
-      - name: Build release APK
+      - name: Build signed APK
+        run: ./gradlew assembleRelease
         env:
-          KEYSTORE_FILE: release.keystore
+          KEYSTORE_FILE: my-release-key.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
 
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v1
