@@ -3,6 +3,8 @@ package com.r0ld3x.truecaller
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,6 +16,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -27,10 +30,12 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     companion object {
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         private val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.READ_CALL_LOG,
             Manifest.permission.READ_CONTACTS,
+            Manifest.permission.POST_NOTIFICATIONS,
 //            Manifest.permission.READ_PHONE_NUMBERS
         )
     }
@@ -48,6 +53,7 @@ class MainActivity : AppCompatActivity() {
         checkOverlayPermission()
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -55,10 +61,12 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         callControlManager = CallControlManager(this)
-
         setupUiListeners()
         checkAndRequestPermissions()
         showMiuiPermissionDialogIfNeeded()
+        createNotificationChannel()
+
+
     }
 
     private fun setupUiListeners() {
@@ -82,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun checkAndRequestPermissions() {
         val missingPermissions = REQUIRED_PERMISSIONS.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -140,16 +149,18 @@ class MainActivity : AppCompatActivity() {
         showToast("Wait...")
         lifecycleScope.launch {
             try {
-                val user = RetrofitClient.getUserInfoCached(context, digitsOnly)
-                if (user == null){
-                    showToast("error while doing api call.")
+                val (user, error) = RetrofitClient.getUserInfoCached(context, digitsOnly)
+                if (error != null){
+                    showToast(error)
                     return@launch
                 }
-                withContext(Dispatchers.Main) {
-                    binding.postLayout.visibility = android.view.View.VISIBLE
-                    binding.profileName.text = user.name
-                    binding.address.text = user.address
-                    binding.profileImage.load(user.image)
+                if (user != null){
+                    withContext(Dispatchers.Main) {
+                        binding.postLayout.visibility = android.view.View.VISIBLE
+                        binding.profileName.text = user.name
+                        binding.address.text = user.address
+                        binding.profileImage.load(user.image)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("CallService", "API Error: ${e.message}")
@@ -211,7 +222,7 @@ class MainActivity : AppCompatActivity() {
             }
             startActivity(autoStartIntent)
 
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             startActivity(
                 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                     data = "package:$packageName".toUri()
@@ -223,4 +234,18 @@ class MainActivity : AppCompatActivity() {
     private fun showToast(message: String) {
         Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
     }
+
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            "error_notification",
+            "My Channel",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Channel description"
+        }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
+    }
+
 }

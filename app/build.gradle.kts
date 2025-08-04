@@ -12,12 +12,11 @@ android {
         minSdk = 28
         targetSdk = 35
         versionCode = 1
-        versionName = "1.5"
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Add signing configuration
     signingConfigs {
         create("release") {
             val keystoreFile = System.getenv("KEYSTORE_FILE")
@@ -37,10 +36,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Apply signing configuration
             signingConfig = signingConfigs.getByName("release")
-
-            // Optional: Make it debuggable for testing
             isDebuggable = false
         }
 

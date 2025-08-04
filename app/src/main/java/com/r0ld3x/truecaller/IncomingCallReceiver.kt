@@ -1,6 +1,7 @@
 package com.r0ld3x.truecaller
 
 import android.annotation.SuppressLint
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -17,7 +18,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.WindowManager
 import android.widget.LinearLayout
-import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.r0ld3x.truecaller.databinding.OverlayNameBinding
@@ -74,13 +75,14 @@ class IncomingCallReceiver : BroadcastReceiver() {
     private fun acquireWakeLock(context: Context) {
         try {
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+
             wakeLock = powerManager.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
                         PowerManager.ACQUIRE_CAUSES_WAKEUP or
                         PowerManager.ON_AFTER_RELEASE,
                 "TrueCaller:IncomingCallWakeLock"
             )
-            wakeLock?.acquire(30000) // 30 seconds timeout
+            wakeLock?.acquire(30000)
             Log.d("WakeLock", "Wake lock acquired")
         } catch (e: Exception) {
             Log.e("WakeLock", "Failed to acquire wake lock: ${e.message}")
@@ -115,15 +117,29 @@ class IncomingCallReceiver : BroadcastReceiver() {
     private fun fetchUserInfoFromApi(context: Context, number: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val user = RetrofitClient.getUserInfoCached(context, number.toString())
-                if (user == null){
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "error: check your internet connection", Toast.LENGTH_SHORT).show()
+                val (user, error) = RetrofitClient.getUserInfoCached(context, number.toString())
+                if (error != null){
+                    Log.e("CallService", error)
+                    withContext(Dispatchers.Main){
+                        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        val notification = NotificationCompat.Builder(context, "error_notification")
+                            .setContentTitle(error)
+                            .setSilent(true)
+                            .setSmallIcon(R.drawable.user_person_icon)
+                            .build()
+                        notificationManager.notify(1, notification)
                     }
                     return@launch
                 }
-                withContext(Dispatchers.Main) {
-                    showCallerOverlay(context, user.name, user.image, user.address)
+                if (user != null) {
+                    Log.e("CallService", "$user")
+                    withContext(Dispatchers.Main) {
+                        showCallerOverlay(context, user.name, user.image, user.address)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        showCallerOverlay(context, "No user data", "", "")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("CallService", "API Error: ${e.message}")
@@ -133,7 +149,6 @@ class IncomingCallReceiver : BroadcastReceiver() {
             }
         }
     }
-
     @SuppressLint("ClickableViewAccessibility")
     private fun showCallerOverlay(
         context: Context,
@@ -208,14 +223,12 @@ class IncomingCallReceiver : BroadcastReceiver() {
                     val deltaX = currentX - initialTouchX
                     val deltaY = currentY - initialTouchY
 
-                    // Check if user has moved significantly (more than touch slop)
                     if (!hasMovedSignificantly && (abs(deltaX) > 20 || abs(deltaY) > 20)) {
                         hasMovedSignificantly = true
                         isDragging = true
                     }
 
                     if (isDragging) {
-                        // Update overlay position smoothly
                         params.x = (initialX + deltaX).toInt()
                         params.y = (initialY + deltaY).toInt()
 
@@ -225,9 +238,8 @@ class IncomingCallReceiver : BroadcastReceiver() {
                             Log.e("Overlay", "Error updating overlay position: ${e.message}")
                         }
 
-                        val dismissThreshold = 150f // Reduced threshold for better UX
+                        val dismissThreshold = 150f
 
-                        // Horizontal swipe to dismiss
                         if (abs(deltaX) > dismissThreshold && abs(deltaX) > abs(deltaY)) {
                             try {
                                 windowManager.removeView(overlayView)
@@ -239,7 +251,6 @@ class IncomingCallReceiver : BroadcastReceiver() {
                             }
                         }
 
-                        // Vertical swipe to dismiss
                         if (abs(deltaY) > dismissThreshold && abs(deltaY) > abs(deltaX)) {
                             try {
                                 windowManager.removeView(overlayView)
@@ -259,9 +270,7 @@ class IncomingCallReceiver : BroadcastReceiver() {
                         val finalDeltaX = event.rawX - initialTouchX
                         val finalDeltaY = event.rawY - initialTouchY
 
-                        // If user didn't swipe far enough, animate back to center
                         if (abs(finalDeltaX) < 150 && abs(finalDeltaY) < 150) {
-                            // Animate back to original position
                             val handler = Handler(Looper.getMainLooper())
                             val startX = params.x
                             val startY = params.y
@@ -276,7 +285,6 @@ class IncomingCallReceiver : BroadcastReceiver() {
                                     val progress =
                                         (elapsed.toFloat() / animationDuration).coerceAtMost(1f)
 
-                                    // Smooth interpolation
                                     val interpolatedProgress =
                                         1f - (1f - progress) * (1f - progress)
 
@@ -296,7 +304,7 @@ class IncomingCallReceiver : BroadcastReceiver() {
                                     }
 
                                     if (progress < 1f) {
-                                        handler.postDelayed(this, 16) // ~60fps
+                                        handler.postDelayed(this, 16)
                                     }
                                 }
                             }
@@ -322,7 +330,6 @@ class IncomingCallReceiver : BroadcastReceiver() {
             }
         }
 
-        // Auto-remove overlay after 15 seconds (increased from 10)
         Handler(Looper.getMainLooper()).postDelayed({
             try {
                 windowManager.removeView(overlayView)

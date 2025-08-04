@@ -33,7 +33,7 @@ interface ApiService {
 
 
 object RetrofitClient {
-    private const val BASE_URL = "https://tc-api-4759f72c5e83.herokuapp.com"
+    private const val BASE_URL = "https://truecaller.underthedesk.blog"
     private const val PREF_NAME = "user_cache"
 
 
@@ -56,27 +56,30 @@ object RetrofitClient {
         retrofit.create(ApiService::class.java)
     }
 
-    suspend fun getUserInfoCached(context: Context,phone: String): ResponseTypes?{
+    suspend fun getUserInfoCached(context: Context,phone: String): Pair<ResponseTypes?, String?>{
          init(context)
         val cachedJson = sharedPreferences.getString(phone, null)
         if (cachedJson != null){
-            return gson.fromJson(cachedJson, ResponseTypes::class.java)
+            return Pair(gson.fromJson(cachedJson, ResponseTypes::class.java), null)
         }
         if (!isInternetAvailable(context)) {
-            return null
+            return Pair(null, "Internet is off")
         }
-        val response = api.getUserInfo(phone)
-        sharedPreferences.edit() { putString(phone, gson.toJson(response)) }
-        if (!response.number.isNullOrEmpty()){
-            sharedPreferences.edit { putString(response.number, gson.toJson(response)) }
+        return try {
+            val response = api.getUserInfo(phone)
+            sharedPreferences.edit { putString(phone, gson.toJson(response)) }
+            if (!response.number.isNullOrEmpty()) {
+                sharedPreferences.edit { putString(response.number, gson.toJson(response)) }
+            }
+            Pair(response, null)
+        } catch (e: Exception) {
+            Pair(null, "Error getting user info: ${e.localizedMessage}")
         }
-        return response
     }
 
 
     fun isInternetAvailable(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
