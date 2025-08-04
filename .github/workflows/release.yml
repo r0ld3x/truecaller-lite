@@ -1,63 +1,45 @@
-name: Android APK Release
+name: Build and Release APK
+
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'    # Trigger on version tags like v1.0, v1.1 etc.
+
+permissions:
+  contents: write   # Permission to create release and upload assets
+  packages: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4  # Updated version
+        uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4  # Updated version
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: Decode keystore from base64
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/my-release-key.jks
-
-      - name: Grant permission to gradlew
+      - name: Grant execute permission to gradlew
         run: chmod +x ./gradlew
 
-      - name: Build signed APK
-        run: ./gradlew assembleRelease
+      - name: Decode keystore file
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+
+      - name: Build release APK
         env:
-          KEYSTORE_FILE: app/my-release-key.jks
+          KEYSTORE_FILE: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
 
-      - name: Find APK file
-        id: find_apk
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
-          echo "APK_PATH=$APK_PATH" >> $GITHUB_OUTPUT
-          echo "Found APK at: $APK_PATH"
-          ls -la "$APK_PATH"
-
-      - name: Upload APK to Release
-        uses: softprops/action-gh-release@v1  # Use v1 instead of v2
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: "Release ${{ github.ref_name }}"
-          tag_name: ${{ github.ref_name }}
-          files: ${{ steps.find_apk.outputs.APK_PATH }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Alternative upload method if above fails
-      - name: Alternative Upload Method
-        if: failure()
-        run: |
-          APK_PATH="${{ steps.find_apk.outputs.APK_PATH }}"
-          APK_NAME=$(basename "$APK_PATH")
-          
-          # Upload using GitHub CLI
-          gh release upload ${{ github.ref_name }} "$APK_PATH" --clobber
+          files: app/build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
