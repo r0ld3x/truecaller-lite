@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
-import android.widget.Toast
 import com.google.gson.Gson
 import retrofit2.Retrofit
 import retrofit2.http.GET
@@ -14,6 +13,10 @@ import retrofit2.http.Query
 import androidx.core.content.edit
 import retrofit2.http.Headers
 
+data class ApiResponse<T>(
+    val success: Boolean,
+    val data: T
+)
 
 data class ResponseTypes (
     val address: String,
@@ -28,9 +31,8 @@ data class ResponseTypes (
 interface ApiService {
     @GET("api")
     @Headers("Accept: application/json")
-    suspend fun getUserInfo(@Query("q") phone: String): ResponseTypes
+    suspend fun getUserInfo(@Query("q") phone: String): ApiResponse<ResponseTypes>
 }
-
 
 object RetrofitClient {
     private const val BASE_URL = "https://truecaller.underthedesk.blog"
@@ -56,26 +58,44 @@ object RetrofitClient {
         retrofit.create(ApiService::class.java)
     }
 
-    suspend fun getUserInfoCached(context: Context,phone: String): Pair<ResponseTypes?, String?>{
-         init(context)
-        val cachedJson = sharedPreferences.getString(phone, null)
-        if (cachedJson != null){
-            return Pair(gson.fromJson(cachedJson, ResponseTypes::class.java), null)
-        }
+    suspend fun getUserInfoCached(context: Context, phone: String): Pair<ResponseTypes?, String?> {
+        init(context)
+
         if (!isInternetAvailable(context)) {
-            return Pair(null, "Internet is off")
-        }
-        return try {
-            val response = api.getUserInfo(phone)
-            sharedPreferences.edit { putString(phone, gson.toJson(response)) }
-            if (!response.number.isNullOrEmpty()) {
-                sharedPreferences.edit { putString(response.number, gson.toJson(response)) }
+            // Try to return cached data if available
+            val cachedJson = sharedPreferences.getString(phone, null)
+            if (cachedJson != null) {
+                return try {
+                    val cachedResponse = gson.fromJson(cachedJson, ResponseTypes::class.java)
+                    Pair(cachedResponse, "Internet is off, using cached data")
+                } catch (e: Exception) {
+                    Log.e("CallService", "Cache parse error: ${e.message}")
+                    Pair(null, "Cached data corrupted")
+                }
             }
-            Pair(response, null)
+            return Pair(null, "Internet is off and no cached data")
+        }
+
+        return try {
+            val apiResponse = api.getUserInfo(phone)
+            Log.d("CallService", "API Response getUserInfoCached: $apiResponse")
+
+            if (apiResponse.success) {
+                val responseJson = gson.toJson(apiResponse.data)
+                sharedPreferences.edit { putString(phone, responseJson) }
+                if (!apiResponse.data.number.isNullOrEmpty()) {
+                    sharedPreferences.edit { putString(apiResponse.data.number, responseJson) }
+                }
+                Pair(apiResponse.data, null)
+            } else {
+                Pair(null, "API returned failure or empty data")
+            }
         } catch (e: Exception) {
+            Log.e("CallService", "API Error: ${e.message} or ${e.localizedMessage}")
             Pair(null, "Error getting user info: ${e.localizedMessage}")
         }
     }
+
 
 
     fun isInternetAvailable(context: Context): Boolean {
