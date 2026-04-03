@@ -49,6 +49,28 @@ A simple and ad-free Android app that displays caller names using the Truecaller
 4. List your api inside the [network_security_config.xml](https://github.com/r0ld3x/truecaller-lite/blob/bac0b9e636ffbc16719ff0d1f6da8ad89b5d196a/app/src/main/res/xml/network_security_config.xml#L5)  (incase you wanna change)
 5. Run on an emulator or physical Android device.
 
+## ☕ Gradle JDK Requirement (Local + CI)
+
+This project requires **JDK 17** for Gradle runtime.
+
+On Linux (Ubuntu/Debian), you can set it up with:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y openjdk-17-jdk
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+./gradlew --version
+./gradlew assembleDebug
+```
+
+To persist `JAVA_HOME`, add these to your shell profile (for example `~/.bashrc`):
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
 ## ⚠️ Disclaimer
   This app is not affiliated with or endorsed by Truecaller. It uses public endpoints purely for demonstration or educational purposes.
 
