@@ -36,8 +36,15 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME"
 
       - name: Decode keystore from base64
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/my-release-key.jks
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > app/my-release-key.jks
+            echo "Keystore decoded successfully"
+          else
+            echo "No keystore secret configured, skipping"
+          fi
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Grant permission to gradlew
         run: chmod +x ./gradlew
