@@ -71,6 +71,17 @@ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
 ```
 
+## 🔐 Release signing in GitHub Actions
+
+The release workflow builds with signing only when these repository secrets are set:
+
+- `KEYSTORE_BASE64` (base64 content of the `.jks` file)
+- `KEYSTORE_PASSWORD`
+- `KEY_ALIAS`
+- `KEY_PASSWORD`
+
+If secrets are missing, `assembleRelease` still runs and produces an unsigned release APK.
+
 ## ⚠️ Disclaimer
   This app is not affiliated with or endorsed by Truecaller. It uses public endpoints purely for demonstration or educational purposes.
 

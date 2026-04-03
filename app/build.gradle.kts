@@ -7,6 +7,14 @@ android {
     namespace = "com.r0ld3x.truecaller"
     compileSdk = 35
 
+    val releaseKeystorePath = System.getenv("KEYSTORE_FILE")?.trim().orEmpty()
+    val releaseKeystoreFile = if (releaseKeystorePath.isNotEmpty()) file(releaseKeystorePath) else null
+    val releaseSigningEnabled =
+        releaseKeystoreFile?.exists() == true &&
+            !System.getenv("KEYSTORE_PASSWORD").isNullOrBlank() &&
+            !System.getenv("KEY_ALIAS").isNullOrBlank() &&
+            !System.getenv("KEY_PASSWORD").isNullOrBlank()
+
     defaultConfig {
         applicationId = "com.r0ld3x.truecaller"
         minSdk = 28
@@ -19,9 +27,8 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystoreFile = System.getenv("KEYSTORE_FILE")
-            if (keystoreFile != null) {
-                storeFile = file(keystoreFile)
+            if (releaseSigningEnabled) {
+                storeFile = releaseKeystoreFile
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
                 keyPassword = System.getenv("KEY_PASSWORD")
@@ -36,7 +43,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (releaseSigningEnabled) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isDebuggable = false
         }
 
