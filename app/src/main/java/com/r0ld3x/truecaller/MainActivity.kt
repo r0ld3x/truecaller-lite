@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var callControlManager: CallControlManager
+    private var hasPromptedOverlayInSession = false
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -50,7 +52,15 @@ class MainActivity : AppCompatActivity() {
         if (!allGranted) {
             showToast("Permissions are required to monitor calls.")
         }
-        checkOverlayPermission()
+        promptOverlayPermissionIfNeeded()
+    }
+
+    private val overlaySettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (!Settings.canDrawOverlays(this)) {
+            showToast("Overlay permission is still disabled.")
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -65,8 +75,6 @@ class MainActivity : AppCompatActivity() {
         checkAndRequestPermissions()
         showMiuiPermissionDialogIfNeeded()
         createNotificationChannel()
-
-
     }
 
     private fun setupUiListeners() {
@@ -98,19 +106,57 @@ class MainActivity : AppCompatActivity() {
         if (missingPermissions.isNotEmpty()) {
             permissionLauncher.launch(missingPermissions.toTypedArray())
         } else {
-            checkOverlayPermission()
+            promptOverlayPermissionIfNeeded()
         }
     }
 
-    private fun checkOverlayPermission() {
-        if (!Settings.canDrawOverlays(this)) {
-            val intent =
-                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())
-            startActivity(intent)
+    private fun promptOverlayPermissionIfNeeded() {
+        if (Settings.canDrawOverlays(this) || hasPromptedOverlayInSession) return
+
+        hasPromptedOverlayInSession = true
+        AlertDialog.Builder(this)
+            .setTitle("Enable overlay permission")
+            .setMessage(
+                "To show caller details during incoming calls, allow 'Display over other apps'. " +
+                        "On Android 14+ for sideloaded apps, you may need App info > 3 dots > Allow restricted settings first."
+            )
+            .setPositiveButton("Open settings") { _, _ ->
+                openOverlayPermissionSettings()
+            }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
+    private fun openOverlayPermissionSettings() {
+        val packageOverlayIntent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            "package:$packageName".toUri()
+        )
+
+        val genericOverlayIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+
+        val appDetailsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = "package:$packageName".toUri()
+        }
+
+        try {
+            overlaySettingsLauncher.launch(packageOverlayIntent)
+        } catch (_: ActivityNotFoundException) {
+            try {
+                overlaySettingsLauncher.launch(genericOverlayIntent)
+            } catch (_: ActivityNotFoundException) {
+                overlaySettingsLauncher.launch(appDetailsIntent)
+            }
         }
     }
 
     private fun startCallMonitorService() {
+        if (!Settings.canDrawOverlays(this)) {
+            showToast("Overlay permission is required.")
+            openOverlayPermissionSettings()
+            return
+        }
+
         callControlManager.enableCallReceiver()
         updateServiceStatus()
         showToast("Service started.")
@@ -125,7 +171,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateServiceStatus()
-        checkOverlayPermission()
     }
 
     @SuppressLint("SetTextI18n")
@@ -145,11 +190,10 @@ class MainActivity : AppCompatActivity() {
 
         hideKeyboard()
         val context = this
-        val digitsOnly = number
         showToast("Wait...")
         lifecycleScope.launch {
             try {
-                val (user, error) = RetrofitClient.getUserInfoCached(context, digitsOnly)
+                val (user, error) = RetrofitClient.getUserInfoCached(context, number)
                 if (error != null){
                     showToast(error)
                     return@launch

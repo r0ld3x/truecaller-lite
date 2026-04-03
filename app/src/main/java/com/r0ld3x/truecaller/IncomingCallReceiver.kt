@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.ContactsContract
+import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.Gravity
@@ -149,6 +150,7 @@ class IncomingCallReceiver : BroadcastReceiver() {
             }
         }
     }
+
     @SuppressLint("ClickableViewAccessibility")
     private fun showCallerOverlay(
         context: Context,
@@ -156,6 +158,11 @@ class IncomingCallReceiver : BroadcastReceiver() {
         callerPhoto: String,
         callerLocation: String
     ) {
+        if (!Settings.canDrawOverlays(context)) {
+            Log.w("Overlay", "Cannot draw overlay: permission not granted")
+            return
+        }
+
         windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         val inflater = LayoutInflater.from(context)
@@ -361,11 +368,5 @@ class IncomingCallReceiver : BroadcastReceiver() {
 
         return false
     }
-
-
-
-
-
-    
 
 }
