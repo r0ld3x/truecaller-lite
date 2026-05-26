@@ -35,7 +35,7 @@ interface ApiService {
 }
 
 object RetrofitClient {
-    private const val BASE_URL = "https://truecaller.underthedesk.blog"
+    private const val BASE_URL = "https://truecaller-413678dc579f.herokuapp.com"
     private const val PREF_NAME = "user_cache"
 
 
